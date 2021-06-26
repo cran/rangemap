@@ -123,6 +123,8 @@ AED_projection <- function(occurrences = NULL, spatial_object = NULL) {
 #' @param boundary_level (numeric) level of administrative division to be considered.
 #' @param keep_data (logical) whether or not to keep downloaded files. Default = \code{FALSE}.
 #' @return A SpatialPolygonsDataFrame from the GADM database at the level selected.
+#' If an error occurs when downloading any of the spatial objects based on
+#' \code{country_code}, the result is NULL.
 #' @export
 #' @importFrom raster getData
 #' @importFrom maps map
@@ -140,8 +142,17 @@ GADM_spoly <- function(country_code, boundary_level, keep_data = FALSE) {
   }
   WGS84 <- sp::CRS("+init=epsg:4326")
   polygon <- lapply(country_code, function(x) {
-    raster::getData(name = "GADM", country = x, level = boundary_level)
+    tryCatch(
+      raster::getData(name = "GADM", country = x, level = boundary_level),
+      error = function(e) {
+        message("An error occurred:\n", e,
+                "\nCheck internet conection, 'country_code', and 'boundary_level'\n")
+      }
+    )
   })
+  if (any(vapply(polygon, is.null, TRUE))) {
+    return(NULL)
+  }
 
   polygon <- do.call(rbind, polygon)
   polygon@data$GID_0 <- 1:length(polygon@data$GID_0)
@@ -165,18 +176,21 @@ GADM_spoly <- function(country_code, boundary_level, keep_data = FALSE) {
 #' occurrences, columns must be: Species, Longitude, and Latitude. Geographic
 #' coordinates must be in decimal degrees (WGS84).
 #' @param polygons SpatialPolygons object to clip convex hulls to these limits.
-#' Projection of this object defines projection of the extent of occurrence. This
-#' projection must be one that allows safe calculation of areas (e.g., Lambert
-#' Azimuthal Equal Area).
+#' Projection must be WGS84 (EPSG:4326).
 #' @return
 #' A list containing a SpatialPolygonsDataFrame of the extent of occurrence, and
-#' a vector with the areas in km2 of the spatial polygons resulted.
+#' a vector with the areas in km2 of the spatial polygons resulted. Projection
+#' of resulting spatial object is Lambert Azimuthal Equal Area.
 #' @export
 #' @importFrom sp CRS SpatialPolygons Polygons Polygon proj4string over spTransform
 #' @importFrom sp SpatialPolygonsDataFrame
 #' @importFrom grDevices chull
 #' @importFrom raster area
 #' @importFrom rgeos gIntersection
+#' @details
+#' Areas are calculated in square kilometers using the Lambert Azimuthal Equal
+#' Area projection, centered on the centroid of occurrence points given as
+#' inputs.
 #' @examples
 #' # occurrences
 #' data("occ_f", package = "rangemap")
@@ -205,12 +219,17 @@ eoo <- function(occurrences, polygons) {
   coord <- as.data.frame(occurrences[, 2:3])
   covexhull <- chull(coord) # convex hull from points
   coord_pol <- coord[c(covexhull, covexhull[1]), ] # defining coordinates
-  covexhull_polygon <- sp::SpatialPolygons(list(sp::Polygons(list(sp::Polygon(coord_pol)), ID = 1)))
-  sp::proj4string(covexhull_polygon) <- WGS84 # project
-  covexhull_polygon_pr <- sp::spTransform(covexhull_polygon, polygons@proj4string) # reproject
-  polygons <- polygons[covexhull_polygon_pr, ]
-  c_hull_extent <- rgeos::gIntersection(covexhull_polygon_pr, polygons,
-                                        byid = FALSE) # area of interest
+  covexhull_polygon <- sp::SpatialPolygons(
+    list(sp::Polygons(list(sp::Polygon(coord_pol)), ID = 1)), proj4string = WGS84
+  )
+  LAEA <- LAEA_projection(spatial_object = covexhull_polygon)
+  suppressWarnings(
+    suppressMessages(
+      c_hull_extent <- rgeos::gIntersection(covexhull_polygon, polygons,
+                                            byid = FALSE) # area of interest
+    )
+  )
+  covexhull_polygon_pr <- sp::spTransform(covexhull_polygon, LAEA) # reproject
 
   eockm2 <- raster::area(c_hull_extent) / 1000000
   eocckm2 <- sum(eockm2) # total area of the species range
@@ -333,6 +352,9 @@ aoo <- function(occ_pr, species) {
 
 clusters <- function(occ_pr, cluster_method = "hierarchical", split_distance,
                      n_k_means, set_seed = 1, verbose = TRUE) {
+  if (missing(occ_pr)) {
+    stop("Argument 'occ_pr' is necessary to perform the analysis")
+  }
   if (cluster_method == "hierarchical" & missing(split_distance)) {
     stop("Argument 'split_distance' must be defined when hierarchical cluster method is used.")
   }
@@ -412,6 +434,9 @@ clusters <- function(occ_pr, cluster_method = "hierarchical", split_distance,
 
 hull_polygon <- function(occ_pr, hull_type = "convex", concave_distance_lim = 5000,
                          verbose = TRUE) {
+  if (missing(occ_pr)) {
+    stop("Argument 'occ_pr' is necessary to perform the analysis")
+  }
   if (hull_type == "convex" | hull_type == "concave") {
     condition <- !is.list(occ_pr)
     if (condition) {
@@ -421,7 +446,7 @@ hull_polygon <- function(occ_pr, hull_type = "convex", concave_distance_lim = 50
       proje <- occ_pr[[1]]@proj4string
     }
     if (is.na(proje)) {
-      stop("'occ_pr' must be projected.")
+      stop("'occ_pr' must be projected")
     }
     if (hull_type == "convex") {
       if (verbose == TRUE) {

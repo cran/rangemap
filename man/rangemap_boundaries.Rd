@@ -5,9 +5,10 @@
 \title{Species distributional ranges based on administrative boundaries}
 \usage{
 rangemap_boundaries(occurrences, adm_areas, country_code, boundary_level = 0,
-                    polygons, keep_data = FALSE, dissolve = FALSE,
-                    final_projection, save_shp = FALSE, name,
-                    overwrite = FALSE, verbose = TRUE)
+                    polygons, extent_of_occurrence = TRUE,
+                    area_of_occupancy = TRUE, keep_data = FALSE,
+                    dissolve = FALSE, final_projection, save_shp = FALSE,
+                    name, overwrite = FALSE, verbose = TRUE)
 }
 \arguments{
 \item{occurrences}{(optional) a data.frame containing geographic coordinates
@@ -18,13 +19,13 @@ species range.}
 
 \item{adm_areas}{(optional, character) a vector of names of administrative
 areas known to be occupied by the species, names depend on the
-\code{boundary_level} selected. Check the \code{\link{adm_area_names}}
-documentation for an idea of how to define names in this parameter. If not
+\code{boundary_level} selected. Check \code{\link{adm_area_names}}
+for an idea of how to define names in this parameter. If not
 defined, \code{occurrences} must exist.}
 
 \item{country_code}{(optional, character) vector of country codes that will be
 considered when creating the species range. Including neighbor countries may
-be necessary for obtaining better results. Use \code{\link{rangemap_explore}}
+be necessary to obtain better results. Use \code{\link{rangemap_explore}}
 for a preview of all potential countries involved in the analysis. Codes
 follow the ISO-3166-1 norm as in function \code{\link[raster]{getData}}.
 If not defined, \code{polygons} must be included. Ignored if \code{polygons}
@@ -42,6 +43,13 @@ If \code{adm_areas} is defined, \code{polygons} must have, as part of its
 data, a field (column) named "adm_names" for selecting extra areas based on
 names. If \code{polygons} is defined, arguments \code{country_code} and
 \code{boundary_level} will be ignored.}
+
+\item{extent_of_occurrence}{(logical) whether to obtain the extent of occurrence
+of the species based on a simple convex hull polygon; default = \code{TRUE}.}
+
+\item{area_of_occupancy}{(logical) whether to obtain the area of occupancy
+of the species based on a simple grid of 4 km^2 resolution;
+default = \code{TRUE}.}
 
 \item{keep_data}{(logical) if \code{TRUE} and \code{polygons} is not defined, data
 downloaded from the GADM data base will be kept in the working directory. Useful
@@ -80,22 +88,29 @@ A sp_range object (S4) containing: (1) a data.frame with information about
 the species range, and SpatialPolygons objects of (2) unique occurrences,
 (3) species range, (4) extent of occurrence, and (5) area of occupancy.
 
-If only \code{adm_areas}, the result will be a sp_range object (S4) with two
-elements: (1) a data.frame with information about the species range, and
-(2) a SpatialPolygons object of the species range.
+If only \code{adm_areas} are defined, the result will be a sp_range object
+(S4) with two elements: (1) a data.frame with information about the species
+range, and (2) a SpatialPolygons object of the species range.
+
+If \code{extent_of_occurrence} and/or \code{area_of_occupancy} = \code{FALSE},
+the corresponding spatial objects in the resulting sp_range object will be
+empty, an areas will have a value of 0.
+
+If downloading data based on \code{country_code} fails, the result is
+\code{NULL}.
 }
 \description{
 rangemap_boundaries generates a distributional range for a given
 species by considering all the polygons of administrative entities in which
-the species has been detected. An approach to the species extent of occurrence
-(using convex hulls) and the area of occupancy according to the IUCN criteria
-is also generated. Shapefiles can be saved in the working directory if it is
-needed.
+the species has been detected. Optionally, representations of the species
+extent of occurrence (using convex hulls) and the area of occupancy according
+to the IUCN criteria can also be generated. Shapefiles can be saved in the
+working directory if it is needed.
 }
 \details{
 Data for countries defined in \code{country_code} are downloaded and loaded
-using the function \code{\link[raster]{getData}}. Information about country codes
-and names of administrative areas, at distinct levels, can be consulted
+using the function \code{\link[raster]{getData}}. Information about country
+codes and names of administrative areas, at distinct levels, can be consulted
 using: \code{\link{country_codes}} and \code{\link{adm_area_names}}.
 }
 \examples{
