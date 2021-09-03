@@ -57,14 +57,15 @@ knitr::include_graphics("vignette_img/VIV_ranges_g.png")
 ## ---- eval=FALSE, echo=TRUE---------------------------------------------------
 #  # For avoiding too much complexity we will use only two of the previous ranges
 #  # comparison
-#  ranges_espace(buff_range, hull_range, variables = vars, add_occurrences = TRUE)
+#  ranges_espace(buff_range, hull_range, variables = vars, do_pca = TRUE,
+#                add_occurrences = TRUE)
 #  
 
 ## ---- fig.width=7, fig.height=7-----------------------------------------------
 knitr::include_graphics("vignette_img/VIV_ranges_e1.png")
 
 ## ---- eval=FALSE, echo=TRUE---------------------------------------------------
-#  ranges_espace(buff_range, hull_range, hull_range1, variables = vars,
+#  ranges_espace(buff_range, hull_range, hull_range1, variables = vars, do_pca = TRUE,
 #                range_colors = c("gray1", "blue", "red"), alpha = 0.4)
 
 ## ---- fig.width=7, fig.height=7-----------------------------------------------
